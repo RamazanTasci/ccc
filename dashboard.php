@@ -491,18 +491,11 @@ if ($action === 'create_task' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="nav-item" data-filter="today" id="nav-today">Bugün</div>
       <div class="nav-item" data-filter="inbox" id="nav-inbox">Bana Gelenler</div>
       <div class="nav-item" data-filter="sent" id="nav-sent">Gönderdiklerim</div>
-      <div class="nav-item active" data-filter="all" id="nav-all">Tüm Görevler</div>
+<!-- <div class="nav-item active" data-filter="all" id="nav-all">Tüm Görevler</div> -->
     </div>
 
     <hr style="border:none;border-top:1px solid #f0f0f0;margin:6px 0">
-    <div class="small-muted">Hızlı Erişim</div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-      <div class="nav-item" id="nav-projects"><i class="fa-regular fa-folder-open"></i> Projeler</div>
-      <div class="nav-item" id="nav-kanban"><i class="fa-solid fa-table-columns"></i> Kanban</div>
-      <div class="nav-item" id="nav-calendar"><i class="fa-regular fa-calendar"></i> Takvim</div>
-      <div class="nav-item" id="nav-groups"><i class="fa-solid fa-users"></i> Ekipler</div>
-      <div class="nav-item" id="nav-messages"><i class="fa-solid fa-message"></i> Mesajlar</div>
-    </div>
+   
 
     <div style="margin-top:auto">
       <div class="hint">Panel base - tüm özellikler arka planda etkinleştirilebilir.</div>
@@ -626,7 +619,6 @@ function escapeHtml(s){ if(!s) return ''; return String(s).replaceAll('&','&amp;
 
 function loadTasks(filter = 'all') {
   currentFilter = filter;
-  panelTitle.innerText = filter==='all' ? 'Tüm Görevler' : (filter==='inbox'?'Bana Gelenler':(filter==='sent'?'Gönderdiklerim':'Bugün'));
   listContainer.innerHTML = 'Yükleniyor...';
   api('list_tasks', {filter}).then(res => {
     if (!Array.isArray(res)) { listContainer.innerHTML = '<div class="hint">Hata</div>'; return; }
@@ -720,7 +712,7 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
 });
 
 // initial load
-loadTasks('all');
+loadTasks('inboxf');
 refreshNotifications();
 setInterval(refreshNotifications, 3500);
 

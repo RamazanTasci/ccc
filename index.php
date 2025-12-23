@@ -17,6 +17,7 @@ if ($conn->connect_error) {
 $page = isset($_GET['page']) ? $_GET['page'] : 'login';
 
 /* Kayıt işlemi */
+
 if (isset($_POST['register'])) {
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
@@ -27,10 +28,10 @@ if (isset($_POST['register'])) {
         $error = "Şifreler uyuşmuyor!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Geçerli bir e-posta adresi giriniz!";
+    } elseif (substr($email, -13) !== "@hasem.com.tr") { // Buradaki kontrol eklendi
+        $error = "Sadece @hasem.com.tr uzantılı e-posta ile kayıt olunabilir!";
     } else {
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-        // Eğer veritabanında email sütunu yoksa ekle (ilk çalıştırmada)
 
         $stmt = $conn->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
         $stmt->bind_param("sss", $username, $email, $password_hash);
@@ -43,6 +44,7 @@ if (isset($_POST['register'])) {
         $stmt->close();
     }
 }
+
 
 /* Giriş işlemi */
 if (isset($_POST['login'])) {
