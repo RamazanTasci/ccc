@@ -28,8 +28,8 @@ if (isset($_POST['register'])) {
         $error = "Şifreler uyuşmuyor!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Geçerli bir e-posta adresi giriniz!";
-    } elseif (substr($email, -13) !== "@hasem.com.tr") { // Buradaki kontrol eklendi
-        $error = "Sadece @hasem.com.tr uzantılı e-posta ile kayıt olunabilir!";
+    } elseif (strpos($email,"@hasem.com.tr")!==FALSE&&strpos($email,"@eymer.com.tr")!==FALSE) { // Buradaki kontrol eklendi
+        $error = "bu e-posta ile kayıt olunamaz!";
     } else {
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
