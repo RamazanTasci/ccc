@@ -225,7 +225,7 @@ body{
 
     <form method="post" class="form">
       <div class="input">
-        <input type="text" name="username" placeholder="Kullanıcı adı veya e-posta" required>
+        <input type="text" name="username" placeholder="Ad Soyad" required>
       </div>
 
       <?php if ($page == 'register'): ?>
