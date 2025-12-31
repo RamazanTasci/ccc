@@ -80,15 +80,13 @@ if (isset($_POST['login'])) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?php echo $page == 'login' ? 'Giriş Yap' : 'Kayıt Ol'; ?></title>
 <style>
-/* Stil dosyası aynı şekilde korundu */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-
 :root{
-  --accent:#ffbfa8;
-  --neon:#7afcff;
-  --glass-bg: rgba(255,255,255,0.06);
-  --glass-border: rgba(255,255,255,0.14);
-  --text: rgba(255,255,255,0.95);
+  --accent: #0056b3; /* Ana kurumsal renk */
+  --neon: #00aaff; /* Hover veya vurgu renkleri */
+  --glass-bg: rgba(255,255,255,0.95); /* Card arka planı */
+  --glass-border: rgba(0,86,179,0.2); /* Card border */
+  --text: #1c1c1c; /* Metin rengi */
+  --placeholder: rgba(28,28,28,0.6); /* Placeholder rengi */
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -96,7 +94,7 @@ html,body{height:100%}
 body{
   font-family: 'Poppins', sans-serif;
   color:var(--text);
-  background: linear-gradient(120deg,#0f1022 0%, #35124c 35%, #862d6d 60%, #ff8a65 100%);
+  background: linear-gradient(120deg, #e0e4eb 0%, #f4f6f8 100%);
   overflow:hidden;
 }
 
@@ -109,9 +107,6 @@ body{
   transform: translate3d(0,0,0);
   animation: float 12s ease-in-out infinite;
 }
-.blob.b1{width:520px;height:520px;left:-120px;top:-120px;background:linear-gradient(45deg,#7b2ff7,#ff6a88);}
-.blob.b2{width:420px;height:420px;right:-80px;bottom:-40px;background:linear-gradient(45deg,#00c9ff,#92fe9d); animation-duration:14s;}
-.blob.b3{width:300px;height:300px;left:50%;top:10%;background:linear-gradient(45deg,#ffd8a9,#ff6a88);opacity:0.25; animation-duration:18s;}
 
 @keyframes float{
   0%{ transform: translateY(0) scale(1) }
@@ -134,9 +129,9 @@ body{
   width:420px;
   max-width:92%;
   border-radius:16px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03);
   backdrop-filter: blur(12px) saturate(140%);
   padding:36px;
   color:var(--text);
@@ -146,7 +141,7 @@ body{
 
 .brand {text-align:center;margin-bottom:10px;}
 .brand h1 {font-size:20px;letter-spacing:1px;margin-bottom:6px;}
-.brand p {color: rgba(255,255,255,0.75);font-size:13px;}
+.brand p {color: rgba(28,28,28,0.75);font-size:13px;}
 
 .form {margin-top:18px;}
 .input {margin-bottom:14px;position:relative;}
@@ -154,19 +149,22 @@ body{
   width:100%;
   padding:14px 18px;
   border-radius:999px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(0,86,179,0.2);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.85));
   color:var(--text);
   outline:none;
   font-size:15px;
   text-align:center;
   transition: box-shadow .25s, border-color .25s, transform .12s;
 }
-.input input::placeholder{ color: rgba(255,255,255,0.45); text-align:center; }
 .input input:focus{
-  box-shadow: 0 6px 24px rgba(122,252,255,0.06), 0 0 12px rgba(255,191,168,0.04);
-  border-color: rgba(122,252,255,0.32);
+  box-shadow: 0 6px 24px rgba(0,170,255,0.06), 0 0 12px rgba(0,86,179,0.15);
+  border-color: var(--accent);
   transform: translateY(-2px);
+}
+.input input::placeholder{
+  color: var(--placeholder);
+  text-align:center;
 }
 
 .btn {
@@ -176,34 +174,76 @@ body{
   text-align:center;
   padding:13px 18px;
   border-radius:999px;
-  background: linear-gradient(90deg,var(--accent), #ffd6c0);
-  color:#222;
+  background: linear-gradient(90deg,var(--accent), #007bff);
+  color:#fff;
   font-weight:600;
   border:none;
   cursor:pointer;
-  box-shadow: 0 8px 30px rgba(255,191,168,0.12), 0 1px 0 rgba(255,255,255,0.2) inset;
+  box-shadow: 0 8px 30px rgba(0,86,179,0.2), 0 1px 0 rgba(255,255,255,0.2) inset;
   transition: transform .15s ease, box-shadow .15s ease;
 }
-.btn:hover{ transform: translateY(-4px); box-shadow: 0 18px 50px rgba(255,191,168,0.16);}
-.divider {margin:18px 0; text-align:center; font-size:13px; color: rgba(255,255,255,0.6);}
+.btn:hover{ transform: translateY(-4px); box-shadow: 0 18px 50px rgba(0,86,179,0.25);}
+
+.divider {margin:18px 0; text-align:center; font-size:13px; color: rgba(28,28,28,0.6);}
 .register {
   display:block;
   margin:0 auto;
   padding:10px 28px;
   border-radius:999px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
   text-decoration:none;
-  color:var(--text);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-  box-shadow: 0 6px 18px rgba(122,252,255,0.03);
+  color:var(--accent);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), transparent);
+  box-shadow: 0 6px 18px rgba(0,170,255,0.03);
   transition: all .18s ease;
   font-weight:600;
 }
 .register:hover{
-  box-shadow: 0 20px 60px rgba(122,252,255,0.08);
+  box-shadow: 0 20px 60px rgba(0,170,255,0.08);
   transform: translateY(-6px) scale(1.02);
 }
-.small{margin-top:12px;font-size:13px;color:rgba(255,255,255,0.65);text-align:center}
+
+.small{margin-top:12px;font-size:13px;color:rgba(28,28,28,0.65);text-align:center}
+
+@media screen and (max-width: 480px) {
+  .container {
+    padding: 20px;
+  }
+
+  .card {
+    width: 100%;
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .brand h1 {
+    font-size: 18px;
+  }
+
+  .brand p {
+    font-size: 12px;
+  }
+
+  .input input {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .divider p, .small {
+    font-size: 12px;
+  }
+
+  .blob {
+    display: none; /* Mobilde performans için gizle */
+  }
+}
+
+
 </style>
 </head>
 <body>
@@ -225,22 +265,22 @@ body{
 
     <form method="post" class="form">
       <div class="input">
-        <input type="text" name="username" placeholder="Ad Soyad" required>
+        <input type="text"autocomplete="off" name="username" placeholder="Ad Soyad" required>
       </div>
 
       <?php if ($page == 'register'): ?>
       <div class="input">
-        <input type="email" name="email" placeholder="E-posta adresi" required>
+        <input type="email"autocomplete="off" name="email" placeholder="E-posta adresi" required>
       </div>
       <?php endif; ?>
 
       <div class="input">
-        <input type="password" name="password" placeholder="Şifre" required>
+        <input type="password"autocomplete="off" name="password" placeholder="Şifre" required>
       </div>
 
       <?php if ($page == 'register'): ?>
       <div class="input">
-        <input type="password" name="confirm" placeholder="Şifreyi tekrar" required>
+        <input type="password"autocomplete="off" name="confirm" placeholder="Şifreyi tekrar" required>
       </div>
       <?php endif; ?>
 
@@ -251,15 +291,15 @@ body{
 
     <div class="divider">
       <?php if ($page == 'login'): ?>
-        <p>Hesabın yok mu?</p>
-        <a href="?page=register" class="register">Kayıt Ol</a>
+      <!--  <p>Hesabın yok mu?</p>
+ <a href="?page=register" class="register">Kayıt Ol</a> -->
       <?php else: ?>
         <p>Zaten hesabın var mı?</p>
         <a href="?page=login" class="register">Giriş Yap</a>
       <?php endif; ?>
     </div>
 
-    <p class="small">&copy; <?php echo date("Y"); ?> Görev App</p>
+    <p class="small">&copy; <?php echo date("Y"); ?> Haşem</p>
   </div>
 </div>
 </body>

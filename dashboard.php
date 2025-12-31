@@ -70,27 +70,7 @@ if ($action) {
     }
 
     // ---------- Setup migration (create tables) ----------
-    if ($action === 'setup_migration') {
-        // Caution: run once
-        $sqls = [];
-        $sqls[] = "CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, avatar_url VARCHAR(255) DEFAULT NULL, role ENUM('admin','editor','viewer') DEFAULT 'viewer', created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS groups (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(150) NOT NULL, description TEXT, created_by INT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS group_members (id INT AUTO_INCREMENT PRIMARY KEY, group_id INT NOT NULL, user_id INT NOT NULL, is_admin TINYINT(1) DEFAULT 0, status ENUM('pending','accepted','rejected') DEFAULT 'pending', joined_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS projects (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(150) NOT NULL, description TEXT, created_by INT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS tasks (id INT AUTO_INCREMENT PRIMARY KEY, project_id INT DEFAULT NULL, group_id INT DEFAULT NULL, parent_task_id INT DEFAULT NULL, title VARCHAR(255) NOT NULL, description TEXT, sender_id INT NOT NULL, receiver_id INT DEFAULT NULL, due_date DATE DEFAULT NULL, priority ENUM('low','normal','high') DEFAULT 'normal', status ENUM('pending','in_progress','completed') DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS notifications (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, message TEXT NOT NULL, type ENUM('task','group_invite','chat','system') DEFAULT 'task', related_id INT DEFAULT NULL, is_read TINYINT(1) DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS group_messages (id INT AUTO_INCREMENT PRIMARY KEY, group_id INT NOT NULL, sender_id INT NOT NULL, message TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS direct_messages (id INT AUTO_INCREMENT PRIMARY KEY, sender_id INT NOT NULL, receiver_id INT NOT NULL, message TEXT NOT NULL, is_read TINYINT(1) DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS task_comments (id INT AUTO_INCREMENT PRIMARY KEY, task_id INT NOT NULL, user_id INT NOT NULL, comment TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS task_files (id INT AUTO_INCREMENT PRIMARY KEY, task_id INT NOT NULL, uploader_id INT NOT NULL, file_name VARCHAR(255), file_path VARCHAR(255), uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $sqls[] = "CREATE TABLE IF NOT EXISTS task_tags (id INT AUTO_INCREMENT PRIMARY KEY, task_id INT NOT NULL, tag VARCHAR(100) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $failed = [];
-        foreach ($sqls as $s) {
-            if (!$conn->query($s)) $failed[] = $conn->error;
-        }
-        if ($failed) json_err('Migration hatası: ' . implode('; ', $failed));
-        json_ok(['message'=>'Migration tamamlandı']);
-    }
+    
 
     // ---------- USERS ----------
     if ($action === 'list_users') {
@@ -185,33 +165,24 @@ if ($action) {
         $row = $res->fetch_assoc();
         if (!$row || !$row['is_admin']) json_err('Yetkiniz yok');
         // delete cascade manually (DB should be set to cascade, but ensure)
-        $conn->begin_transaction();
-        $conn->query("DELETE FROM task_files WHERE task_id IN (SELECT id FROM tasks WHERE group_id=$group_id)");
-        $conn->query("DELETE FROM task_comments WHERE task_id IN (SELECT id FROM tasks WHERE group_id=$group_id)");
-        $conn->query("DELETE FROM tasks WHERE group_id=$group_id");
-        $conn->query("DELETE FROM group_members WHERE group_id=$group_id");
-        $conn->query("DELETE FROM group_messages WHERE group_id=$group_id");
-        $conn->query("DELETE FROM groups WHERE id=$group_id");
-        $conn->commit();
         json_ok(['deleted'=>true]);
     }
 
 // ---------- TASKS ----------
 if ($action === 'create_task' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim($_POST['title'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $receiver_id = !empty($_POST['receiver_id']) ? intval($_POST['receiver_id']) : null;
-    $group_id = !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
-    $project_id = !empty($_POST['project_id']) ? intval($_POST['project_id']) : null;
-    $due_date = !empty($_POST['due_date']) ? $_POST['due_date'] : null;
-    $priority = in_array($_POST['priority'] ?? 'normal', ['low','normal','high']) ? $_POST['priority'] : 'normal';
-    if ($title === '') json_err('Başlık gerekli');
-
+  $title = $_POST['title'] ?? '';
     // Görevi veritabanına ekle
-    $stmt = $conn->prepare("INSERT INTO tasks (project_id, group_id, parent_task_id, title, description, sender_id, receiver_id, due_date, priority, status, created_at) 
-                            VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'pending', NOW())");
-    $stmt->bind_param('iississs', $project_id, $group_id, $title, $description, $me_id, $receiver_id, $due_date, $priority);
-    if (!$stmt->execute()) json_err('DB: '.$conn->error);
+ $receiver_id = !empty($_POST['receiver_id']) ? (int)$_POST['receiver_id'] : $me_id;
+$due_date = !empty($_POST['due_date']) ? $_POST['due_date'] : date('Y-m-d');
+$company_id = !empty($_POST['company_id']) ? (int)$_POST['company_id'] : null;
+
+$stmt = $conn->prepare("INSERT INTO tasks (project_id, group_id, parent_task_id, title, description, sender_id, receiver_id, due_date, priority, status, created_at, company_id) 
+                        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)");
+
+$stmt->bind_param('iississsi', $project_id, $group_id, $title, $description, $me_id, $receiver_id, $due_date, $priority, $company_id);
+
+if (!$stmt->execute()) json_err('DB: '.$conn->error);
+
 
     $task_id = $stmt->insert_id;
 
@@ -238,10 +209,9 @@ if ($action === 'create_task' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Sunucu ayarları
-            $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com';
             $mail->SMTPAuth = true;
-            $mail->Username = 'rmztesttask@gmail.com';
+            $mail->Username = 'gorevapp0@gmail.com';
             $mail->Password = 'slfb rcks akcb zxop'; // senin verdiğin uygulama şifresi
             $mail->SMTPSecure = 'tls';
             $mail->Port = 587;
@@ -284,18 +254,19 @@ if ($action === 'create_task' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($filter === 'today') $where[] = "DATE(t.due_date) = CURDATE()";
     if ($project_id) $where[] = "t.project_id = $project_id";
 
-    // 🔧 Burayı değiştirdik:
-    $q = "
+$q = "
     SELECT 
         t.*, 
         s.username AS sender_username, 
         r.username AS receiver_username, 
-        c.username AS completed_by_username
+        c.username AS completed_by_username,
+        co.name AS company_name
     FROM tasks t
     LEFT JOIN users s ON s.id = t.sender_id 
     LEFT JOIN users r ON r.id = t.receiver_id 
     LEFT JOIN users c ON c.id = t.completed_by
-    ";
+    LEFT JOIN companies co ON co.id = t.company_id
+";
 
     if ($where) $q .= " WHERE " . implode(' AND ', $where);
     $q .= " ORDER BY t.created_at DESC LIMIT 1000";
@@ -462,9 +433,29 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
         $out = []; while ($row = $res->fetch_assoc()) $out[] = $row;
         echo json_encode($out); exit;
     }
+// ---------- COMPANIES ----------
+if ($action === 'create_company' && $_SERVER['REQUEST_METHOD']==='POST') {
+    $name = trim($_POST['name'] ?? '');
+    $desc = trim($_POST['description'] ?? '');
+    if ($name==='') json_err('Firma adı gerekli');
+
+    $stmt = $conn->prepare("INSERT INTO companies (name, description, created_by) VALUES (?, ?, ?)");
+    $stmt->bind_param('ssi', $name, $desc, $me_id);
+    if ($stmt->execute()) json_ok(['id'=>$stmt->insert_id]);
+    else json_err('DB hata');
+}
+
+if ($action === 'list_companies') {
+    $out = [];
+    $res = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
+    while ($r = $res->fetch_assoc()) $out[] = $r;
+    echo json_encode($out);
+    exit;
+}
 
     json_err('Bilinmeyen action: ' . $action);
 }
+
 
 // ---------------- UI (HTML/CSS/JS) ----------------
 ?><!doctype html>
@@ -476,13 +467,13 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <style>
-:root{--bg:#f6f7f9;--accent:#ff4d4f;--muted:#7b7f87;--panel:#fff;--green:#2ecc71}
+:root{--bg:#f6f7f9;--accent:#0056b3;--muted:#0056b3;--panel:#fff;--blue:#0056b3}
 *{box-sizing:border-box} body{font-family:Inter,system-ui; margin:0; background:var(--bg); color:#111}
 .app{display:flex;min-height:100vh}
-.sidebar{width:280px;background:#fff;border-right:1px solid #eee;padding:22px;display:flex;flex-direction:column;gap:14px}
-.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7b2ff7,#ff6a88);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.sidebar{width:280px;background:#fff;border-right:1px solid #ffffffff;padding:22px;display:flex;flex-direction:column;gap:14px}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#000000,#0056b3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
 .small-muted{color:var(--muted);font-size:13px}
-.btn-add{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #f2f2f2;cursor:pointer;color:var(--accent);font-weight:700}
+.btn-add{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #0056b3;cursor:pointer;color:var(--accent);font-weight:700}
 .nav-section{margin-top:4px}
 .nav-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;color:#333;cursor:pointer}
 .nav-item.active{background:linear-gradient(90deg, rgba(255,74,85,0.06), rgba(255,191,168,0.04));font-weight:600}
@@ -491,7 +482,7 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
 .title{font-size:26px;font-weight:700}
 .top-actions{display:flex;gap:12px;align-items:center}
 .notif{position:relative;cursor:pointer;color:var(--muted)}
-.notif .count{position:absolute;top:-6px;right:-6px;background:var(--accent);color:white;font-size:11px;padding:2px 6px;border-radius:12px}
+.notif .count{position:absolute;top:-6px;right:-6px;backgrofnd:var(--accent);color:white;font-size:11px;padding:2px 6px;border-radius:12px}
 .panel{background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(18,18,18,0.04)}
 .task-list{display:flex;flex-direction:column;gap:8px}
 .task-row{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:8px;border:1px solid #f0f0f0;background:#fbfbfb}
@@ -503,17 +494,116 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;padding:20px;z-index:9999}
 .modal .card{max-width:720px;width:100%}
 .hint{font-size:13px;color:#777}
+/* ------------- Mobil ve hamburger menü ------------- */
+/* Hamburger butonu mobilde görünür */
+
+@media screen and (max-width:768px){
+  #hamburgerBtn {
+    display: inline-block !important;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 1001; /* overlay’dan önde */
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100%;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+
+  #overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 999;
+  }
+
+  #overlay.active {
+    display: block;
+  }
+
+  /* Bildirim dropdown mobilde tam genişlik */
+  .notif-dropdown {
+    right: 10px !important;
+    top: 50px !important;
+    width: calc(100% - 20px) !important;
+  }
+}
+
+
+
+@media screen and (max-width:768px){
+  #hamburgerBtn {
+    display: inline-block !important;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    height: 100%;
+    z-index: 999;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .main {
+    margin-left: 0;
+    padding: 16px 12px;
+  }
+
+  #overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 998;
+  }
+
+  #overlay.active {
+    display: block;
+  }
+}
+
+.task-title{
+  font-weight:600;
+  font-size:15px;
+}
+
+
+
+
 </style>
 </head>
 <body>
+
+
+
+
+
 <div class="app">
+  <button id="hamburgerBtn" style=" margin-left:-3px;  margin-top: -6px; display:none;font-size:24px;padding:8px;border:none;background:none;cursor:pointer">☰</button>
   <aside class="sidebar">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="avatar" id="avatar"><?php echo $me_username ? strtoupper(substr(h($me_username),0,1)) : '?'; ?></div>
         <div>
           <div style="font-weight:700" id="username"><?php echo $me_username ? h($me_username) : 'Misafir'; ?></div>
-          <div class="small-muted">Hoş geldin</div>
+          <div class="small-muted"><strong>Hoş geldin</strong></div>
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -522,11 +612,39 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
     </div>
 
     <div><button id="quickNew" class="btn-add"><i class="fa-solid fa-plus" style="color:var(--accent)"></i> Yeni Görev</button></div>
+<button id="quickNewCompany" class="btn-add">
+  <i class="fa-solid fa-building"></i> Firma Ekle
+</button>
+<div class="modal" id="modalCompany">
+  <div class="card" style="background:white;padding:18px;border-radius:8px">
+    <h3>Firma Ekle</h3>
+
+    <form id="companyForm">
+      <div style="margin-top:8px">
+        <input name="company_name" placeholder="Firma Adı" required
+               style="width:100%;padding:8px;border:1px solid #eee;border-radius:6px">
+      </div>
+
+      <div style="margin-top:8px">
+        <textarea name="company_desc" placeholder="Açıklama"
+                  style="width:100%;padding:8px;border:1px solid #eee;border-radius:6px"></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+<button type="button" onclick="document.getElementById('modalCompany').style.display='none'">
+  İptal
+</button>
+        <button type="submit">Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
 
     <div class="nav-section">
       <div class="nav-item" data-filter="today" id="nav-today">Bugün</div>
       <div class="nav-item" data-filter="inbox" id="nav-inbox">Bana Gelenler</div>
       <div class="nav-item" data-filter="sent" id="nav-sent">Gönderdiklerim</div>
+      <div class="nav-item" data-filter="companies" id="nav-companies">Firmalar</div>
 <!-- <div class="nav-item active" data-filter="all" id="nav-all">Tüm Görevler</div> -->
     </div>
 
@@ -540,20 +658,19 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
 
   <main class="main">
     <div class="topbar">
-      <div class="title">Görev Paneli</div>
+      <div style="margin-left: 35px;" class="title">Görev Paneli</div>
       <div class="top-actions">
-        <div class="notif" id="notifBtn"><i class="fa-regular fa-bell fa-lg"></i> <span class="count" id="notif_count" style="display:none">0</span></div>
+        <div class="notif" style="font-weight:600" id="notifBtn"><i class="fa-regular fa-bell fa-lg"></i> <span class="count" id="notif_count" style="display:none">0</span></div>
       </div>
     </div>
 
     <div class="panel" id="mainPanel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h4 id="panelTitle">Tüm Görevler</h4>
+        <h4 id="panelTitle">Görevler</h4>
         <div>
-          <button class="small-btn" type="reset" id="refreshBtn">Yenile</button>
         </div>
       </div>
-      <div id="listContainer" class="task-list">Yükleniyor...</div>
+      <div id="listContainer" class="task-list">Veritabanına Bağlantı kuruluyor...</div>
     </div>
   </main>
 </div>
@@ -577,7 +694,7 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
     <textarea name="description" placeholder="Açıklama" style="width:100%;padding:8px;border:1px solid #eee;border-radius:6px"></textarea>
   </div>
 
-  <!-- ✅ FOTO YÜKLEME -->
+  <!-- FOTO YÜKLEME -->
   <div style="margin-top:8px">
     <input type="file" name="file" accept="image/*">
   </div>
@@ -587,15 +704,14 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
       <option value="">Kendime</option>
     </select>
 
+    <div style="display:flex;gap:8px;margin-top:8px">
+  <select name="company_id" id="taskCompany">
+  <option value="">Firma Seçiniz</option>
+</select>
+
     <input type="date" name="due_date"
            value="<?php echo date('Y-m-d'); ?>"
            required>
-
-    <select name="priority">
-      <option value="normal">Normal</option>
-      <option value="high">Yüksek</option>
-      <option value="low">Düşük</option>
-    </select>
   </div>
 
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
@@ -603,15 +719,53 @@ if ($action === 'delete_task' && $_SERVER['REQUEST_METHOD']==='POST') {
     <button type="submit">Kaydet</button>
   </div>
 </form>
-
   </div>
 </div>
-
 <div style="font-weight:600" ${hasImage}>
 </div>
-
-
 <script>
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const sidebar = document.querySelector('.sidebar');
+
+let overlay = document.getElementById('overlay');
+if(!overlay){
+  overlay = document.createElement('div');
+  overlay.id = 'overlay';
+  document.body.appendChild(overlay);
+}
+
+document.getElementById('taskCompany').addEventListener('focus', function () {
+  if (this.options.length === 1) {
+    loadCompaniesIntoSelect();
+  }
+});
+
+
+function loadCompaniesIntoSelect(){
+  api('list_companies').then(list=>{
+    const sel = document.getElementById('taskCompany');
+    sel.innerHTML = '<option value="">Firma Seçiniz</option>';
+
+    list.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+
+hamburgerBtn.addEventListener('click', ()=>{
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('active');
+});
+
+overlay.addEventListener('click', ()=>{
+  sidebar.classList.remove('open');
+  overlay.classList.remove('active');
+});
+
 // Minimal client API helper
 function api(action, data = {}, method = 'GET') {
   method = method.toUpperCase();
@@ -650,6 +804,10 @@ function renderTaskRow(t) {
     filesHtml = t.files.map(f => `<img src="${escapeHtml(f.file_path)}" style="max-height:60px;margin-right:4px;border-radius:4px">`).join('');
   }
 
+
+
+
+
   return `
   <div class="task-row">
     <div style="display:flex;align-items:center;gap:12px">
@@ -662,16 +820,22 @@ function renderTaskRow(t) {
           ${yapanInfo}
         </div>
         <div style="margin-top:4px;display:flex">${filesHtml}</div>
+        ${t.company_name ? `<div class="hint">Firma: ${escapeHtml(t.company_name)}</div>` : ''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       ${due}
       <div class="hint">${escapeHtml(t.priority)}</div>
-      ${checked ? `<button class="small-btn complete-btn" data-id="${t.id}" style="color:#ff4d4f;border-color:#ff4d4f">Geri Al</button>
+      ${checked ? `<button class="small-btn complete-btn" data-id="${t.id}" style="color:#ff4d4f;border-color:##20b339">Geri Al</button>
                    <button class="small-btn delete-btn" data-id="${t.id}" style="color:#ff4d4f;border-color:#ff4d4f">Sil</button>` 
                  : `<button class="small-btn complete-btn" data-id="${t.id}">Tamamla</button>`}
+  
+
+
+                 
     </div>
   </div>`;
+
 }
 
 
@@ -740,10 +904,20 @@ document.querySelectorAll('.nav-item').forEach(ni=>{
   ni.addEventListener('click', function(){
     document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
     this.classList.add('active');
+
     const f = this.dataset.filter || 'all';
+
+    if (f === 'companies') {
+      loadCompanies();
+      return;
+    }
+
     loadTasks(f);
   });
 });
+
+
+
 
 // quick modals
 document.getElementById('quickNew').addEventListener('click', ()=>openTaskModal());
@@ -752,6 +926,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e){
   const fd = new FormData(this);
   const data = {};
   for (const [k,v] of fd.entries()) data[k]=v;
+  if (data.company_id) data.company_id = data.company_id; // ekle
   api('create_task', data, 'POST').then(res=>{
 if (res.success) {
   const taskId = res.id;
@@ -807,6 +982,73 @@ function deleteTask(id) {
     else alert(res.message || 'Hata');
   });
 }
+
+
+document.addEventListener("click", function (e) {
+    if (e.target.classList.contains("mail-btn")) {
+
+        const taskId = e.target.dataset.id;
+
+        if (!confirm("Bu görev için 'Yeni görev geldi' maili gönderilsin mi?")) {
+            return;
+        }
+
+        fetch("send_task_email.php?task_id=" + taskId)
+            .then(() => {
+                alert("📧 Mail başarıyla gönderildi");
+            })
+            .catch(() => {
+                alert("❌ Mail gönderilemedi");
+            });
+    }
+});
+// Firma modal aç
+document.getElementById('quickNewCompany').addEventListener('click', ()=>{
+  document.getElementById('modalCompany').style.display='flex';
+});
+
+document.getElementById('companyForm').addEventListener('submit', function(e){
+  e.preventDefault();
+
+  const fd = new FormData(this);
+  const data = {
+    name: fd.get('company_name'),
+    description: fd.get('company_desc')
+  };
+
+  api('create_company', data, 'POST').then(res=>{
+    if(res.success){
+      closeModal('modalCompany');
+      loadCompanies();
+    }else{
+      alert(res.message || 'Hata');
+    }
+  });
+});
+function loadCompanies(){
+  panelTitle.textContent = 'Firmalar';
+  listContainer.innerHTML = 'Yükleniyor...';
+
+  api('list_companies').then(list=>{
+    if(!list.length){
+      listContainer.innerHTML = '<div class="hint">Firma yok</div>';
+      return;
+    }
+
+    listContainer.innerHTML = list.map(c=>`
+      <div class="task-row">
+        <div class="task-title">${escapeHtml(c.name)}</div>
+      </div>
+    `).join('');
+  });
+}
+
+
+document.getElementById('companyCancel')
+  .addEventListener('click', ()=>closeModal('modalCompany'));
+
+
+
 
 </script>
 </body>
